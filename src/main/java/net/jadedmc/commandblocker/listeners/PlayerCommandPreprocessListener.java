@@ -33,12 +33,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 /**
  * Listens to the PlaceCommandPreprocessEvent, which runs when a player goes to send a command.
  * We use this to block commands set in the config.yml.
  */
 public class PlayerCommandPreprocessListener implements Listener {
     private final CommandBlockerPlugin plugin;
+    private final ConcurrentMap<UUID, String> originalMessages = new ConcurrentHashMap<>();
 
     /**
      * Creates the listener.
@@ -49,11 +54,31 @@ public class PlayerCommandPreprocessListener implements Listener {
     }
 
     /**
+     * Captures the original command message before other plugins modify it.
+     * Runs at LOWEST priority so replacement plugins (like ChatControl) haven't altered the message yet.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEarlyCommand(@NotNull final PlayerCommandPreprocessEvent event) {
+        originalMessages.put(event.getPlayer().getUniqueId(), event.getMessage());
+    }
+
+    /**
      * Runs when the event is called.
      * @param event PlaceCommandPreprocessEvent.
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandPreprocess(@NotNull final PlayerCommandPreprocessEvent event) {
+        final String originalMessage = originalMessages.remove(event.getPlayer().getUniqueId());
+
+        // If the original command (before replacement by other plugins) was in AdditionalCommands,
+        // allow it through the blacklist.
+        if(originalMessage != null) {
+            final String originalFirstWord = originalMessage.split(" ")[0].replaceFirst("/", "").toLowerCase();
+            if(plugin.getConfigManager().getAdditionalCommands().contains(originalFirstWord)) {
+                return;
+            }
+        }
+
         final String mode = plugin.getConfigManager().getConfig().getString("Mode");
 
         // Don't block commands if

@@ -33,6 +33,7 @@ public class AdditionalCommandHandler {
         this.plugin = plugin;
         this.commandMap = resolveCommandMap();
         registerAll();
+        refreshOnlinePlayers();
     }
 
     private CommandMap resolveCommandMap() {
@@ -50,27 +51,23 @@ public class AdditionalCommandHandler {
         }
     }
 
-    public void registerAll() {
+    private void registerAll() {
         if(commandMap == null) return;
-
         for(final String name : plugin.getConfigManager().getAdditionalCommands()) {
             registerCommand(name);
         }
-
-        refreshOnlinePlayers();
     }
 
     private void registerCommand(@NotNull final String rawName) {
         final String name = rawName.toLowerCase().trim();
         if(name.isEmpty()) return;
-        if(commandMap.getCommand(name) != null) return;
 
         final AdditionalCommand cmd = new AdditionalCommand(name);
         commandMap.register(FALLBACK_PREFIX, cmd);
         registered.add(cmd);
     }
 
-    public void unregisterAll() {
+    private void unregisterAll() {
         if(commandMap == null || registered.isEmpty()) return;
 
         try {
@@ -94,21 +91,9 @@ public class AdditionalCommandHandler {
                 cmd.unregister(commandMap);
             }
             registered.clear();
-            refreshOnlinePlayers();
         } catch (final IllegalAccessException exception) {
             plugin.getLogger().warning("Could not unregister AdditionalCommands: " + exception.getMessage());
         }
-    }
-
-    private Field findField(@NotNull Class<?> type, @NotNull final String name) {
-        while(type != null && type != Object.class) {
-            try {
-                return type.getDeclaredField(name);
-            } catch (final NoSuchFieldException ignored) {
-                type = type.getSuperclass();
-            }
-        }
-        return null;
     }
 
     private void refreshOnlinePlayers() {
@@ -120,6 +105,22 @@ public class AdditionalCommandHandler {
     public void reload() {
         unregisterAll();
         registerAll();
+        refreshOnlinePlayers();
+    }
+
+    public void shutdown() {
+        unregisterAll();
+    }
+
+    private Field findField(@NotNull Class<?> type, @NotNull final String name) {
+        while(type != null && type != Object.class) {
+            try {
+                return type.getDeclaredField(name);
+            } catch (final NoSuchFieldException ignored) {
+                type = type.getSuperclass();
+            }
+        }
+        return null;
     }
 
     /**

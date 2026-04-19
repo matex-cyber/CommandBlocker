@@ -64,7 +64,7 @@ public final class CommandBlockerPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if(additionalCommandHandler != null) {
-            additionalCommandHandler.unregisterAll();
+            additionalCommandHandler.shutdown();
         }
 
         // Disables ChatUtils. Required to prevent memory leaks with the Adventure Library.
