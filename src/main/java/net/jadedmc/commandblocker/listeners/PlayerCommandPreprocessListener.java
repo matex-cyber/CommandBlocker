@@ -144,13 +144,18 @@ public class PlayerCommandPreprocessListener implements Listener {
         }
 
         // Play the block sound if enabled.
-        if(plugin.getConfigManager().getConfig().isSet("Sound.Sound")) {
-            final Sound sound = Sound.valueOf(plugin.getConfigManager().getConfig().getString("Sound.Sound"));
-            final float volume = (float) plugin.getConfigManager().getConfig().getDouble("Sound.Volume");
-            final float pitch = (float) plugin.getConfigManager().getConfig().getDouble("Sound.Pitch");
+        final String soundName = plugin.getConfigManager().getConfig().getString("Sound.Sound");
+        if(soundName != null && !soundName.isEmpty()) {
+            try {
+                final Sound sound = Sound.valueOf(soundName);
+                final float volume = (float) plugin.getConfigManager().getConfig().getDouble("Sound.Volume");
+                final float pitch = (float) plugin.getConfigManager().getConfig().getDouble("Sound.Pitch");
 
-            // Plays the sound.
-            event.getPlayer().playSound(event.getPlayer(), sound, volume, pitch);
+                // Plays the sound.
+                event.getPlayer().playSound(event.getPlayer(), sound, volume, pitch);
+            } catch (final IllegalArgumentException | NullPointerException exception) {
+                plugin.getLogger().warning("Invalid Sound.Sound value in config: '" + soundName + "'");
+            }
         }
     }
 }

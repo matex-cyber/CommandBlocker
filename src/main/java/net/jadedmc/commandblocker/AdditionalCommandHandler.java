@@ -15,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ public class AdditionalCommandHandler {
 
     private final CommandBlockerPlugin plugin;
     private final List<AdditionalCommand> registered = new ArrayList<>();
+    private final Map<String, Command> displacedCommands = new HashMap<>();
     private final CommandMap commandMap;
 
     public AdditionalCommandHandler(@NotNull final CommandBlockerPlugin plugin) {
@@ -64,6 +66,31 @@ public class AdditionalCommandHandler {
 
         final AdditionalCommand cmd = new AdditionalCommand(name);
         commandMap.register(FALLBACK_PREFIX, cmd);
+
+        // If another plugin (or Bukkit itself) already owns this name, the register()
+        // call above only bound the "commandblocker:<name>" fallback. Force the primary
+        // name to point at our no-op so the client actually sees it in tab-complete
+        // (otherwise HideColonCommands: true would also hide the colon variant).
+        try {
+            final Field knownCommandsField = findField(commandMap.getClass(), "knownCommands");
+            if(knownCommandsField != null) {
+                knownCommandsField.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                final Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+
+                final Command existing = knownCommands.get(name);
+                if(existing != cmd) {
+                    if(existing != null && !displacedCommands.containsKey(name)) {
+                        displacedCommands.put(name, existing);
+                    }
+                    knownCommands.put(name, cmd);
+                    cmd.setLabel(name);
+                }
+            }
+        } catch (final IllegalAccessException exception) {
+            plugin.getLogger().warning("Could not force-register AdditionalCommand '" + name + "': " + exception.getMessage());
+        }
+
         registered.add(cmd);
     }
 
@@ -91,6 +118,14 @@ public class AdditionalCommandHandler {
                 cmd.unregister(commandMap);
             }
             registered.clear();
+
+            // Restore any commands we displaced so they work again after reload/shutdown.
+            for(final Map.Entry<String, Command> entry : displacedCommands.entrySet()) {
+                if(!knownCommands.containsKey(entry.getKey())) {
+                    knownCommands.put(entry.getKey(), entry.getValue());
+                }
+            }
+            displacedCommands.clear();
         } catch (final IllegalAccessException exception) {
             plugin.getLogger().warning("Could not unregister AdditionalCommands: " + exception.getMessage());
         }

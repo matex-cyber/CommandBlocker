@@ -46,7 +46,7 @@ Commands:
 # Useful for custom commands that are not registered on the server but you want to appear as hints.
 # Only works in BLACKLIST and HIDE modes.
 AdditionalCommands:
-  - /Test # This is a command that doesn't registered in the server but will show up in tab complete suggestionss.
+  - /Test # This is a command that doesn't registered in the server but will show up in tab complete suggestions.
 
 # Hides all commands that have a ':' in them.
 # Such as: /bukkit:version, /minecraft:tp, etc
